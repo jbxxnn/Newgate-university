@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { requirePermission } from "@/lib/auth";
+export default async function ReportsPage() { await requirePermission("reports.view"); return <><p className="text-sm font-semibold tracking-widest text-teal-700">MONITORING</p><h2 className="mt-2 text-3xl font-bold">Reports</h2><div className="mt-7 grid gap-3 md:grid-cols-2"><Link className="rounded-xl border bg-white p-5 hover:border-teal-600" href="/api/reports/open-risks">Open Risks Report (CSV)</Link><Link className="rounded-xl border bg-white p-5 hover:border-teal-600" href="/api/reports/overdue-actions">Overdue Corrective Actions (CSV)</Link></div></>; }

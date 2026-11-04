@@ -1,0 +1,3 @@
+import { db } from "@/lib/db";
+import { getSession } from "@/lib/auth";
+export async function GET() { const s=await getSession(); if(!s?.permissions.includes("reports.view")) return new Response("Forbidden",{status:403}); const rows=await db.correctiveAction.findMany({where:{dueDate:{lt:new Date()},status:{notIn:["COMPLETED","CLOSED"]}},include:{assignedOfficer:true}}); const body=["Action,Officer,Due Date,Priority,Status",...rows.map(r=>[r.title,r.assignedOfficer.fullName,r.dueDate.toISOString().slice(0,10),r.priority,r.status].map(v=>`"${String(v).replaceAll('"','""')}"`).join(","))].join("\n"); return new Response(body,{headers:{"Content-Type":"text/csv","Content-Disposition":"attachment; filename=overdue-actions.csv"}}); }

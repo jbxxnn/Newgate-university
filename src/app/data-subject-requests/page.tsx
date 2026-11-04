@@ -1,0 +1,4 @@
+import { db } from "@/lib/db";
+import { requirePermission } from "@/lib/auth";
+import { createDataSubjectRequest } from "../privacy-operations/actions";
+export default async function DataSubjectRequestsPage() { await requirePermission("data_subject_requests.manage"); const requests=await db.dataSubjectRequest.findMany({orderBy:{dateReceived:"desc"}}); return <><h2 className="text-3xl font-bold">Data Subject Requests</h2><form action={createDataSubjectRequest} className="mt-6 flex gap-2 rounded-xl border bg-white p-4"><input name="requestType" placeholder="Request type" required/><input name="studentReference" placeholder="Synthetic student reference" required/><button className="rounded bg-teal-700 px-3 text-white">Record request</button></form><div className="mt-6 space-y-2">{requests.map(r=><p className="rounded border bg-white p-4" key={r.id}>{r.requestNumber} · {r.requestType} · {r.status}</p>)}</div></>; }

@@ -1,0 +1,4 @@
+import { db } from "@/lib/db";
+import { requirePermission } from "@/lib/auth";
+import { DepartmentForm } from "./department-form";
+export default async function DepartmentsPage() { await requirePermission("users.manage"); const departments = await db.department.findMany({ include: { _count: { select: { users: true } } }, orderBy: { name: "asc" } }); return <><p className="text-sm font-semibold tracking-widest text-teal-700">ORGANISATION</p><h2 className="mt-2 text-3xl font-bold">Departments</h2><DepartmentForm /><div className="mt-8 grid gap-3 md:grid-cols-2">{departments.map((department) => <article className="rounded-xl border border-slate-200 bg-white p-5" key={department.id}><h3 className="font-semibold">{department.name}</h3><p className="mt-1 text-sm text-slate-500">{department.code} · {department._count.users} users</p></article>)}</div></>; }

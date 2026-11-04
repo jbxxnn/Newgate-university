@@ -1,0 +1,458 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum SystemRole {
+  SUPER_ADMIN
+  PRIVACY_OFFICER
+  DATA_OWNER
+  DATA_STEWARD
+  ICT_OFFICER
+  MANAGEMENT_VIEWER
+}
+
+enum AuditResult {
+  SUCCESS
+  DENIED
+  FAILURE
+}
+
+enum AccessRequestStatus {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  APPLIED
+  EXPIRED
+  REVOKED
+}
+
+enum DataAssetStatus {
+  DRAFT
+  ACTIVE
+  UNDER_REVIEW
+  ARCHIVED
+}
+
+enum ComplianceStatus {
+  NOT_ASSESSED
+  COMPLIANT
+  PARTIALLY_COMPLIANT
+  NON_COMPLIANT
+  NOT_APPLICABLE
+}
+
+enum RiskStatus {
+  OPEN
+  UNDER_REVIEW
+  TREATMENT_PLANNED
+  IN_TREATMENT
+  ACCEPTED
+  MITIGATED
+  CLOSED
+}
+enum CorrectiveActionStatus {
+  OPEN
+  IN_PROGRESS
+  AWAITING_VERIFICATION
+  COMPLETED
+  REOPENED
+  CLOSED
+}
+enum IncidentStatus {
+  REPORTED
+  TRIAGED
+  INVESTIGATING
+  CONTAINED
+  REMEDIATION_IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+enum DataSubjectRequestStatus {
+  RECEIVED
+  IDENTITY_VERIFICATION_PENDING
+  IN_REVIEW
+  ACTION_REQUIRED
+  RESPONSE_PREPARED
+  COMPLETED
+  DECLINED
+}
+
+model Department {
+  id String @id @default(cuid())
+  name String @unique
+  code String @unique
+  users User[]
+  dataAssets DataAsset[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id String @id @default(cuid())
+  fullName String
+  email String @unique
+  passwordHash String
+  jobTitle String?
+  status AccountStatus @default(ACTIVE)
+  lastLogin DateTime?
+  departmentId String?
+  department Department? @relation(fields: [departmentId], references: [id])
+  roles UserRole[]
+  auditEvents AuditLog[] @relation("AuditActor")
+  requestedAccess AccessRequest[] @relation("RequestedBy")
+  approvedAccess AccessRequest[] @relation("Approver")
+  appliedAccess AccessRequest[] @relation("AppliedBy")
+  ownedAssets DataAssetOwner[]
+  stewardedAssets DataAssetSteward[]
+  assignedActions CorrectiveAction[] @relation("AssignedAction")
+  verifiedActions CorrectiveAction[] @relation("VerifiedAction")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DataClassification {
+  id String @id @default(cuid())
+  name String @unique
+  description String?
+  rank Int @unique
+  assets DataAsset[]
+}
+
+model DataAsset {
+  id String @id @default(cuid())
+  assetNumber String @unique
+  name String @unique
+  description String
+  dataCategory String
+  processingPurpose String
+  lawfulBasis String?
+  status DataAssetStatus @default(DRAFT)
+  reviewDate DateTime?
+  notes String?
+  departmentId String
+  department Department @relation(fields: [departmentId], references: [id])
+  classificationId String
+  classification DataClassification @relation(fields: [classificationId], references: [id])
+  owners DataAssetOwner[]
+  stewards DataAssetSteward[]
+  retentionRule RetentionRule?
+  risks Risk[]
+  controls Control[]
+  incidents Incident[]
+  qualityIssues DataQualityIssue[]
+  thirdPartyAssets ThirdPartyAsset[]
+  disposalRecords DisposalRecord[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, departmentId])
+}
+
+model Risk {
+  id String @id @default(cuid())
+  riskNumber String @unique
+  title String
+  description String
+  category String
+  likelihood Int
+  impact Int
+  score Int
+  level String
+  treatmentPlan String?
+  status RiskStatus @default(OPEN)
+  reviewDate DateTime?
+  dataAssetId String
+  dataAsset DataAsset @relation(fields: [dataAssetId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, level])
+}
+
+model ComplianceRequirement {
+  id String @id @default(cuid())
+  requirementNumber String @unique
+  framework String
+  reference String
+  title String
+  description String
+  status String @default("ACTIVE")
+  controls Control[]
+  createdAt DateTime @default(now())
+}
+
+model Control {
+  id String @id @default(cuid())
+  controlNumber String @unique
+  name String
+  description String
+  reviewFrequency String
+  status ComplianceStatus @default(NOT_ASSESSED)
+  lastReviewDate DateTime?
+  nextReviewDate DateTime?
+  requirementId String
+  requirement ComplianceRequirement @relation(fields: [requirementId], references: [id])
+  dataAssetId String
+  dataAsset DataAsset @relation(fields: [dataAssetId], references: [id])
+  reviews ControlReview[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ControlReview {
+  id String @id @default(cuid())
+  controlId String
+  control Control @relation(fields: [controlId], references: [id], onDelete: Cascade)
+  reviewerId String
+  result ComplianceStatus
+  notes String?
+  evidenceReference String?
+  reviewDate DateTime @default(now())
+  nextReviewDate DateTime?
+  finding Finding?
+}
+
+model Finding {
+  id String @id @default(cuid())
+  findingNumber String @unique
+  controlReviewId String @unique
+  controlReview ControlReview @relation(fields: [controlReviewId], references: [id], onDelete: Cascade)
+  description String
+  severity String
+  status String @default("OPEN")
+  createdAt DateTime @default(now())
+  correctiveActions CorrectiveAction[]
+}
+
+model CorrectiveAction {
+  id String @id @default(cuid())
+  actionNumber String @unique
+  title String
+  requiredAction String
+  priority String
+  dueDate DateTime
+  status CorrectiveActionStatus @default(OPEN)
+  completionNotes String?
+  evidenceReference String?
+  findingId String
+  finding Finding @relation(fields: [findingId], references: [id])
+  assignedOfficerId String
+  assignedOfficer User @relation("AssignedAction", fields: [assignedOfficerId], references: [id])
+  verifiedById String?
+  verifiedBy User? @relation("VerifiedAction", fields: [verifiedById], references: [id])
+  verifiedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Incident {
+  id String @id @default(cuid())
+  incidentNumber String @unique
+  title String
+  incidentType String
+  description String
+  severity String
+  dateDetected DateTime
+  status IncidentStatus @default(REPORTED)
+  containmentAction String?
+  responseNotes String?
+  dataAssetId String?
+  dataAsset DataAsset? @relation(fields: [dataAssetId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model DataSubjectRequest {
+  id String @id @default(cuid())
+  requestNumber String @unique
+  requestType String
+  studentReference String
+  dateReceived DateTime @default(now())
+  dueDate DateTime?
+  status DataSubjectRequestStatus @default(RECEIVED)
+  actionsTaken String?
+  outcome String?
+  createdAt DateTime @default(now())
+}
+
+model DataAssetOwner {
+  dataAssetId String
+  userId String
+  assignedAt DateTime @default(now())
+  dataAsset DataAsset @relation(fields: [dataAssetId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+  @@id([dataAssetId, userId])
+}
+
+model DataAssetSteward {
+  dataAssetId String
+  userId String
+  assignedAt DateTime @default(now())
+  dataAsset DataAsset @relation(fields: [dataAssetId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+  @@id([dataAssetId, userId])
+}
+
+model RetentionRule {
+  id String @id @default(cuid())
+  dataAssetId String @unique
+  retentionPeriod String
+  retentionTrigger String
+  legalPolicyBasis String?
+  reviewDate DateTime?
+  disposalMethod String?
+  approvalRequired Boolean @default(true)
+  status String @default("ACTIVE")
+  dataAsset DataAsset @relation(fields: [dataAssetId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model DisposalRecord {
+  id String @id @default(cuid())
+  dataAssetId String
+  dataAsset DataAsset @relation(fields: [dataAssetId], references: [id])
+  proposedDisposalDate DateTime
+  disposalMethod String
+  status String @default("PROPOSED")
+  evidenceReference String?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model DataQualityIssue {
+  id String @id @default(cuid())
+  issueNumber String @unique
+  dataAssetId String
+  dataAsset DataAsset @relation(fields: [dataAssetId], references: [id])
+  dimension String
+  description String
+  severity String
+  status String @default("OPEN")
+  dueDate DateTime?
+  createdAt DateTime @default(now())
+}
+
+model AccessReview {
+  id String @id @default(cuid())
+  reviewNumber String @unique
+  name String
+  scope String
+  startDate DateTime
+  dueDate DateTime
+  status String @default("OPEN")
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model ThirdParty {
+  id String @id @default(cuid())
+  name String @unique
+  service String
+  approvalStatus String @default("PENDING")
+  riskRating String
+  nextReviewDate DateTime?
+  status String @default("ACTIVE")
+  assets ThirdPartyAsset[]
+}
+
+model ThirdPartyAsset {
+  thirdPartyId String
+  dataAssetId String
+  thirdParty ThirdParty @relation(fields: [thirdPartyId], references: [id], onDelete: Cascade)
+  dataAsset DataAsset @relation(fields: [dataAssetId], references: [id], onDelete: Cascade)
+  @@id([thirdPartyId, dataAssetId])
+}
+
+model TrainingEvent {
+  id String @id @default(cuid())
+  trainingNumber String @unique
+  title String
+  topic String
+  audience String
+  trainingDate DateTime
+  status String @default("PLANNED")
+  createdAt DateTime @default(now())
+}
+
+model AccessRequest {
+  id String @id @default(cuid())
+  requestNumber String @unique
+  resourceName String
+  requestedPermission String
+  businessReason String
+  startDate DateTime
+  expiryDate DateTime?
+  status AccessRequestStatus @default(SUBMITTED)
+  decisionNotes String?
+  requestedById String
+  requestedBy User @relation("RequestedBy", fields: [requestedById], references: [id])
+  approverId String?
+  approver User? @relation("Approver", fields: [approverId], references: [id])
+  decidedAt DateTime?
+  appliedById String?
+  appliedBy User? @relation("AppliedBy", fields: [appliedById], references: [id])
+  appliedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([status, createdAt])
+  @@index([requestedById, status])
+}
+
+model Role {
+  id String @id @default(cuid())
+  key SystemRole @unique
+  name String
+  description String?
+  users UserRole[]
+  permissions RolePermission[]
+}
+
+model Permission {
+  id String @id @default(cuid())
+  key String @unique
+  description String?
+  roles RolePermission[]
+}
+
+model UserRole {
+  userId String
+  roleId String
+  assignedAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  @@id([userId, roleId])
+}
+
+model RolePermission {
+  roleId String
+  permissionId String
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  @@id([roleId, permissionId])
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String?
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  eventType String
+  module String
+  recordType String
+  recordId String?
+  result AuditResult @default(SUCCESS)
+  metadata Json?
+  createdAt DateTime @default(now())
+  @@index([module, recordType, recordId])
+  @@index([actorId, createdAt])
+}

@@ -1,0 +1,2 @@
+import { LoginForm } from "./login-form";
+export default function LoginPage() { return <main className="flex flex-1 items-center justify-center bg-slate-950 p-6"><section className="w-full max-w-md rounded-2xl bg-white p-8 shadow-xl"><p className="text-sm font-semibold tracking-widest text-teal-700">NEWGATE UNIVERSITY</p><h1 className="mt-3 text-2xl font-bold">Sign in</h1><p className="mt-2 text-sm text-slate-600">Use an authorised staff account to access governance records.</p><LoginForm /></section></main>; }

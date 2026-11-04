@@ -1,0 +1,3 @@
+import { db } from "@/lib/db";
+import { getSession } from "@/lib/auth";
+export async function GET() { const s=await getSession(); if(!s?.permissions.includes("reports.view")) return new Response("Forbidden",{status:403}); const rows=await db.risk.findMany({where:{status:{notIn:["CLOSED","ACCEPTED"]}},include:{dataAsset:true}}); const body=["Risk,Asset,Score,Level,Status",...rows.map(r=>[r.title,r.dataAsset.name,r.score,r.level,r.status].map(v=>`"${String(v).replaceAll('"','""')}"`).join(","))].join("\n"); return new Response(body,{headers:{"Content-Type":"text/csv","Content-Disposition":"attachment; filename=open-risks.csv"}}); }

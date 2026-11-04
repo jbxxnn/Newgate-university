@@ -1,0 +1,5 @@
+"use client";
+import { useActionState } from "react";
+import { applyRequest, decideRequest, type RequestState } from "./actions";
+const initial: RequestState = {};
+export function RequestActions({ id, status, canApprove, canApply }: { id: string; status: string; canApprove: boolean; canApply: boolean }) { const [state, action, pending] = useActionState(decideRequest, initial); if (status === "APPROVED" && canApply) return <form action={applyRequest.bind(null, id)}><button className="text-teal-700 hover:underline">Apply</button></form>; if (!canApprove || !["SUBMITTED", "UNDER_REVIEW"].includes(status)) return null; return <form action={action} className="flex gap-2"><input type="hidden" name="id" value={id} /><button disabled={pending} name="decision" value="APPROVED" className="text-teal-700 hover:underline">Approve</button><button disabled={pending} name="decision" value="REJECTED" className="text-red-700 hover:underline">Reject</button>{state.error && <span className="text-xs text-red-700">{state.error}</span>}</form>; }
